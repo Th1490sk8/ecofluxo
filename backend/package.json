@@ -1,0 +1,19 @@
+{
+  "name": "ecofluxo-backend",
+  "version": "1.0.0",
+  "description": "Backend do sistema EcoFluxo - recebe dados do ESP32-S3 e grava no MongoDB Atlas",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "mongoose": "^8.5.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  }
+}

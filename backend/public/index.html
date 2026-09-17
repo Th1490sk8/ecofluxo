@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EcoFluxo - Painel de Monitoramento</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.3/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1720;
+    --card: #182634;
+    --text: #e6edf3;
+    --muted: #8b9bab;
+    --verde: #2ecc71;
+    --amarelo: #f1c40f;
+    --vermelho: #e74c3c;
+    --azul: #3498db;
+    --borda: #26384a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 24px;
+  }
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  header h1 { font-size: 26px; }
+  header h1 span { color: var(--azul); }
+  #ultima-atualizacao { color: var(--muted); font-size: 13px; }
+
+  .grid-status {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--borda);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .card h3 {
+    color: var(--muted);
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+  }
+  .card .valor {
+    font-size: 32px;
+    font-weight: bold;
+  }
+  .card .unidade {
+    font-size: 15px;
+    color: var(--muted);
+    margin-left: 4px;
+  }
+
+  #card-status { display: flex; align-items: center; gap: 14px; }
+  .bolinha {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--muted);
+    box-shadow: 0 0 12px var(--muted);
+    transition: all 0.3s;
+  }
+  .bolinha.normal   { background: var(--verde);   box-shadow: 0 0 14px var(--verde); }
+  .bolinha.atencao  { background: var(--amarelo); box-shadow: 0 0 14px var(--amarelo); }
+  .bolinha.critico  { background: var(--vermelho);box-shadow: 0 0 14px var(--vermelho); animation: pulsar 1s infinite; }
+  @keyframes pulsar { 50% { opacity: 0.4; } }
+
+  .grid-graficos {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 16px;
+  }
+  .grafico-card {
+    background: var(--card);
+    border: 1px solid var(--borda);
+    border-radius: 12px;
+    padding: 20px;
+    height: 320px;
+  }
+  .grafico-card h3 { color: var(--muted); font-size: 14px; margin-bottom: 12px; }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 24px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--borda); font-size: 14px; }
+  th { color: var(--muted); font-weight: 600; }
+  .status-badge {
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+    text-transform: uppercase;
+  }
+  .status-badge.normal  { background: rgba(46,204,113,0.15); color: var(--verde); }
+  .status-badge.atencao { background: rgba(241,196,15,0.15); color: var(--amarelo); }
+  .status-badge.critico { background: rgba(231,76,60,0.15); color: var(--vermelho); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Eco<span>Fluxo</span> — Painel de Monitoramento</h1>
+  <div id="ultima-atualizacao">Aguardando dados...</div>
+</header>
+
+<section class="grid-status">
+  <div class="card" id="card-status">
+    <div class="bolinha" id="bolinha-status"></div>
+    <div>
+      <h3>Status Atual</h3>
+      <div class="valor" id="valor-status">--</div>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Temperatura</h3>
+    <div><span class="valor" id="valor-temp">--</span><span class="unidade">°C</span></div>
+  </div>
+  <div class="card">
+    <h3>Umidade</h3>
+    <div><span class="valor" id="valor-umidade">--</span><span class="unidade">%</span></div>
+  </div>
+  <div class="card">
+    <h3>Nível de Gás (MQ-135)</h3>
+    <div><span class="valor" id="valor-gas">--</span><span class="unidade">ADC</span></div>
+  </div>
+</section>
+
+<section class="grid-graficos">
+  <div class="grafico-card">
+    <h3>Temperatura ao longo do tempo</h3>
+    <canvas id="graficoTemperatura"></canvas>
+  </div>
+  <div class="grafico-card">
+    <h3>Nível de Gás ao longo do tempo</h3>
+    <canvas id="graficoGas"></canvas>
+  </div>
+</section>
+
+<table>
+  <thead>
+    <tr><th>Horário</th><th>Temp (°C)</th><th>Umidade (%)</th><th>Gás</th><th>Status</th></tr>
+  </thead>
+  <tbody id="tabela-corpo"></tbody>
+</table>
+
+<script>
+// -------- CONFIGURAÇÃO --------
+// Se o dashboard for aberto de outra origem que não seja o próprio servidor,
+// troque '' pela URL completa do servidor, ex: 'https://seu-app.onrender.com'
+const API_BASE = '';
+const INTERVALO_ATUALIZACAO_MS = 5000;
+
+const corPorStatus = { normal: '#2ecc71', atencao: '#f1c40f', critico: '#e74c3c' };
+const textoPorStatus = { normal: 'NORMAL', atencao: 'ATENÇÃO', critico: 'CRÍTICO' };
+
+// -------- CONFIGURAÇÃO DOS GRÁFICOS --------
+const opcoesComuns = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: { legend: { labels: { color: '#8b9bab' } } },
+  scales: {
+    x: { ticks: { color: '#8b9bab' }, grid: { color: '#26384a' } },
+    y: { ticks: { color: '#8b9bab' }, grid: { color: '#26384a' } }
+  }
+};
+
+const graficoTemperatura = new Chart(document.getElementById('graficoTemperatura'), {
+  type: 'line',
+  data: { labels: [], datasets: [{
+    label: 'Temperatura (°C)', data: [], borderColor: '#3498db',
+    backgroundColor: 'rgba(52,152,219,0.15)', fill: true, tension: 0.3
+  }]},
+  options: opcoesComuns
+});
+
+const graficoGas = new Chart(document.getElementById('graficoGas'), {
+  type: 'line',
+  data: { labels: [], datasets: [{
+    label: 'Gás (leitura ADC)', data: [], borderColor: '#e67e22',
+    backgroundColor: 'rgba(230,126,34,0.15)', fill: true, tension: 0.3
+  }]},
+  options: opcoesComuns
+});
+
+function formatarHora(dataISO) {
+  const d = new Date(dataISO);
+  return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+async function atualizarDashboard() {
+  try {
+    const resposta = await fetch(`${API_BASE}/api/dados?limite=30`);
+    const leituras = await resposta.json();
+    if (!leituras.length) return;
+
+    const ultima = leituras[leituras.length - 1];
+
+    // Cards
+    document.getElementById('valor-temp').textContent = ultima.temperatura.toFixed(1);
+    document.getElementById('valor-umidade').textContent = ultima.umidade.toFixed(1);
+    document.getElementById('valor-gas').textContent = ultima.gas;
+    document.getElementById('valor-status').textContent = textoPorStatus[ultima.status] || '--';
+    document.getElementById('bolinha-status').className = 'bolinha ' + ultima.status;
+    document.getElementById('ultima-atualizacao').textContent =
+      'Última leitura: ' + formatarHora(ultima.criadoEm);
+
+    // Gráficos
+    const labels = leituras.map(l => formatarHora(l.criadoEm));
+    graficoTemperatura.data.labels = labels;
+    graficoTemperatura.data.datasets[0].data = leituras.map(l => l.temperatura);
+    graficoTemperatura.update();
+
+    graficoGas.data.labels = labels;
+    graficoGas.data.datasets[0].data = leituras.map(l => l.gas);
+    graficoGas.update();
+
+    // Tabela (10 mais recentes, mais nova primeiro)
+    const corpoTabela = document.getElementById('tabela-corpo');
+    corpoTabela.innerHTML = '';
+    leituras.slice(-10).reverse().forEach(l => {
+      const linha = document.createElement('tr');
+      linha.innerHTML = `
+        <td>${formatarHora(l.criadoEm)}</td>
+        <td>${l.temperatura.toFixed(1)}</td>
+        <td>${l.umidade.toFixed(1)}</td>
+        <td>${l.gas}</td>
+        <td><span class="status-badge ${l.status}">${textoPorStatus[l.status]}</span></td>
+      `;
+      corpoTabela.appendChild(linha);
+    });
+
+  } catch (erro) {
+    document.getElementById('ultima-atualizacao').textContent = 'Erro ao conectar com o servidor.';
+    console.error(erro);
+  }
+}
+
+atualizarDashboard();
+setInterval(atualizarDashboard, INTERVALO_ATUALIZACAO_MS);
+</script>
+
+</body>
+</html>
