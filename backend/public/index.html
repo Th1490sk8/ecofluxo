@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>EcoFluxo - Painel de Monitoramento</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.3/chart.umd.min.js"></script>
+<script src="chart.umd.js"></script>
 <style>
   :root {
     --bg: #0f1720;
@@ -79,6 +79,26 @@
   .bolinha.critico  { background: var(--vermelho);box-shadow: 0 0 14px var(--vermelho); animation: pulsar 1s infinite; }
   @keyframes pulsar { 50% { opacity: 0.4; } }
 
+  #card-exaustor { display: flex; align-items: center; gap: 14px; }
+  .icone-exaustor {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    background: var(--borda);
+    color: var(--muted);
+    transition: all 0.3s;
+  }
+  .icone-exaustor.ligado {
+    background: rgba(52,152,219,0.15);
+    color: var(--azul);
+    animation: girar 1.2s linear infinite;
+  }
+  @keyframes girar { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
   .grid-graficos {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
@@ -106,6 +126,16 @@
   .status-badge.normal  { background: rgba(46,204,113,0.15); color: var(--verde); }
   .status-badge.atencao { background: rgba(241,196,15,0.15); color: var(--amarelo); }
   .status-badge.critico { background: rgba(231,76,60,0.15); color: var(--vermelho); }
+  .exaustor-badge {
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+    text-transform: uppercase;
+    background: var(--borda);
+    color: var(--muted);
+  }
+  .exaustor-badge.ligado { background: rgba(52,152,219,0.15); color: var(--azul); }
 </style>
 </head>
 <body>
@@ -135,6 +165,13 @@
     <h3>Nível de Gás (MQ-135)</h3>
     <div><span class="valor" id="valor-gas">--</span><span class="unidade">ADC</span></div>
   </div>
+  <div class="card" id="card-exaustor">
+    <div class="icone-exaustor" id="icone-exaustor">&#9881;</div>
+    <div>
+      <h3>Exaustor (12V)</h3>
+      <div class="valor" id="valor-exaustor" style="font-size:20px;">--</div>
+    </div>
+  </div>
 </section>
 
 <section class="grid-graficos">
@@ -150,7 +187,7 @@
 
 <table>
   <thead>
-    <tr><th>Horário</th><th>Temp (°C)</th><th>Umidade (%)</th><th>Gás</th><th>Status</th></tr>
+    <tr><th>Horário</th><th>Temp (°C)</th><th>Umidade (%)</th><th>Gás</th><th>Status</th><th>Exaustor</th></tr>
   </thead>
   <tbody id="tabela-corpo"></tbody>
 </table>
@@ -216,6 +253,10 @@ async function atualizarDashboard() {
     document.getElementById('ultima-atualizacao').textContent =
       'Última leitura: ' + formatarHora(ultima.criadoEm);
 
+    const exaustorLigado = Boolean(ultima.exaustor);
+    document.getElementById('valor-exaustor').textContent = exaustorLigado ? 'LIGADO' : 'Desligado';
+    document.getElementById('icone-exaustor').className = 'icone-exaustor' + (exaustorLigado ? ' ligado' : '');
+
     // Gráficos
     const labels = leituras.map(l => formatarHora(l.criadoEm));
     graficoTemperatura.data.labels = labels;
@@ -231,12 +272,14 @@ async function atualizarDashboard() {
     corpoTabela.innerHTML = '';
     leituras.slice(-10).reverse().forEach(l => {
       const linha = document.createElement('tr');
+      const exLigado = Boolean(l.exaustor);
       linha.innerHTML = `
         <td>${formatarHora(l.criadoEm)}</td>
         <td>${l.temperatura.toFixed(1)}</td>
         <td>${l.umidade.toFixed(1)}</td>
         <td>${l.gas}</td>
         <td><span class="status-badge ${l.status}">${textoPorStatus[l.status]}</span></td>
+        <td><span class="exaustor-badge ${exLigado ? 'ligado' : ''}">${exLigado ? 'Ligado' : 'Desligado'}</span></td>
       `;
       corpoTabela.appendChild(linha);
     });

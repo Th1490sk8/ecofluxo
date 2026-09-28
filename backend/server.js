@@ -29,6 +29,7 @@ const leituraSchema = new mongoose.Schema({
   umidade: { type: Number, required: true },
   gas: { type: Number, required: true },
   status: { type: String, enum: ['normal', 'atencao', 'critico'], required: true },
+  exaustor: { type: Boolean, default: false }, // true = ventoinha 12V ligada
   criadoEm: { type: Date, default: Date.now }
 });
 
@@ -39,16 +40,22 @@ const Leitura = mongoose.model('Leitura', leituraSchema);
 // Recebe uma nova leitura do ESP32-S3
 app.post('/api/dados', async (req, res) => {
   try {
-    const { temperatura, umidade, gas, status } = req.body;
+    const { temperatura, umidade, gas, status, exaustor } = req.body;
 
     if (temperatura === undefined || umidade === undefined || gas === undefined || !status) {
       return res.status(400).json({ erro: 'Campos obrigatórios ausentes.' });
     }
 
-    const novaLeitura = new Leitura({ temperatura, umidade, gas, status });
+    const novaLeitura = new Leitura({
+      temperatura,
+      umidade,
+      gas,
+      status,
+      exaustor: Boolean(exaustor)
+    });
     await novaLeitura.save();
 
-    console.log(`Nova leitura salva: temp=${temperatura} umid=${umidade} gas=${gas} status=${status}`);
+    console.log(`Nova leitura salva: temp=${temperatura} umid=${umidade} gas=${gas} status=${status} exaustor=${novaLeitura.exaustor}`);
     res.status(201).json({ mensagem: 'Leitura salva com sucesso.', dados: novaLeitura });
   } catch (erro) {
     console.error(erro);

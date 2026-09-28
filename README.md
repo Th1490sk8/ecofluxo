@@ -65,13 +65,21 @@ No `.ino`, ajuste conforme os testes reais com fumaça/calor controlados:
 Rodando só no seu PC, o dashboard e o ESP32 só funcionam na mesma rede local.
 Para apresentar o projeto (ex: banca do Projeto Integrador) sem depender da sua rede:
 
-1. Suba o código do `backend/` para o GitHub
-2. Crie uma conta gratuita em https://render.com
-3. Crie um "Web Service" apontando pro seu repositório
-4. Configure a variável de ambiente `MONGODB_URI` no painel do Render
-5. Troque o `SERVER_URL` no `.ino` pela URL pública gerada (ex: `https://ecofluxo.onrender.com/api/dados`)
+1. Envie o repositório para o GitHub. Antes, confirme que ele não contém senhas ou chaves reais. A senha do Wi-Fi está configurada no `.ino`; prefira um repositório privado. Se essa senha já foi publicada, troque-a.
+2. Crie uma conta em https://render.com e conecte sua conta do GitHub.
+3. No Render, escolha **New > Web Service** e selecione o repositório.
+4. Configure o serviço:
+	- **Root Directory:** `backend`
+	- **Runtime:** `Node`
+	- **Build Command:** `npm ci`
+	- **Start Command:** `npm start`
+5. Em **Environment**, crie `MONGODB_URI` com a string de conexão do MongoDB Atlas. Não configure `PORT`; o Render fornece esse valor automaticamente.
+6. Crie o serviço e aguarde o deploy. A URL pública abrirá o dashboard, e a API estará no mesmo domínio em `/api/dados`.
+7. Troque o `SERVER_URL` no `.ino` pela URL pública com HTTPS e `/api/dados` (ex: `https://ecofluxo.onrender.com/api/dados`) e grave o firmware no ESP32.
 
 Assim o site fica acessível de qualquer navegador, e o ESP32 pode enviar dados de qualquer rede com internet.
+
+No MongoDB Atlas, a lista de acesso à rede também precisa permitir conexões do Render. Para um projeto de estudo, `0.0.0.0/0` permite a conexão, mas deixa o banco acessível a partir de qualquer IP; use um usuário de banco com senha forte e permissões limitadas.
 
 ## Endpoints da API
 
