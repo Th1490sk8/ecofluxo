@@ -145,6 +145,10 @@
   <div id="ultima-atualizacao">Aguardando dados...</div>
 </header>
 
+<div id="banner-emergencia" style="display:none; background: rgba(231,76,60,0.15); border: 1px solid var(--vermelho); color: var(--vermelho); border-radius: 10px; padding: 12px 16px; margin-bottom: 16px; font-weight: bold; text-align: center;">
+  MODO EMERGÊNCIA ATIVADO — exaustor forçado ligado manualmente
+</div>
+
 <section class="grid-status">
   <div class="card" id="card-status">
     <div class="bolinha" id="bolinha-status"></div>
@@ -180,8 +184,39 @@
     <canvas id="graficoTemperatura"></canvas>
   </div>
   <div class="grafico-card">
-    <h3>Nível de Gás ao longo do tempo</h3>
+    <h3>Nível de Gás (leitura bruta do sensor) ao longo do tempo</h3>
     <canvas id="graficoGas"></canvas>
+  </div>
+</section>
+
+<h2 style="margin-top:32px; margin-bottom:4px; font-size:18px; color:var(--text);">Estimativa por tipo de gás (ppm)</h2>
+<p style="color:var(--muted); font-size:13px; margin-bottom:16px; max-width:760px;">
+  O MQ-135 é um sensor único e genérico — ele não distingue gases fisicamente.
+  Os gráficos abaixo são estimativas calculadas a partir da <strong>mesma</strong>
+  leitura, usando curvas de calibração genéricas do datasheet do sensor.
+  Eles tendem a subir e descer juntos; servem para comparação didática, não
+  como medição simultânea e independente de cada gás.
+</p>
+<section class="grid-graficos">
+  <div class="grafico-card">
+    <h3>CO₂ (estimado)</h3>
+    <canvas id="graficoCO2"></canvas>
+  </div>
+  <div class="grafico-card">
+    <h3>Amônia — NH₃ (estimado)</h3>
+    <canvas id="graficoNH3"></canvas>
+  </div>
+  <div class="grafico-card">
+    <h3>Álcool (estimado)</h3>
+    <canvas id="graficoAlcool"></canvas>
+  </div>
+  <div class="grafico-card">
+    <h3>Tolueno (estimado)</h3>
+    <canvas id="graficoTolueno"></canvas>
+  </div>
+  <div class="grafico-card">
+    <h3>Acetona (estimado)</h3>
+    <canvas id="graficoAcetona"></canvas>
   </div>
 </section>
 
@@ -231,6 +266,23 @@ const graficoGas = new Chart(document.getElementById('graficoGas'), {
   options: opcoesComuns
 });
 
+function criarGraficoGasEspecifico(elementId, label, cor, corFundo) {
+  return new Chart(document.getElementById(elementId), {
+    type: 'line',
+    data: { labels: [], datasets: [{
+      label: label, data: [], borderColor: cor,
+      backgroundColor: corFundo, fill: true, tension: 0.3
+    }]},
+    options: opcoesComuns
+  });
+}
+
+const graficoCO2     = criarGraficoGasEspecifico('graficoCO2', 'CO₂ (ppm estimado)', '#2ecc71', 'rgba(46,204,113,0.15)');
+const graficoNH3      = criarGraficoGasEspecifico('graficoNH3', 'NH₃ (ppm estimado)', '#9b59b6', 'rgba(155,89,182,0.15)');
+const graficoAlcool   = criarGraficoGasEspecifico('graficoAlcool', 'Álcool (ppm estimado)', '#3498db', 'rgba(52,152,219,0.15)');
+const graficoTolueno  = criarGraficoGasEspecifico('graficoTolueno', 'Tolueno (ppm estimado)', '#e74c3c', 'rgba(231,76,60,0.15)');
+const graficoAcetona  = criarGraficoGasEspecifico('graficoAcetona', 'Acetona (ppm estimado)', '#f1c40f', 'rgba(241,196,15,0.15)');
+
 function formatarHora(dataISO) {
   const d = new Date(dataISO);
   return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -254,8 +306,10 @@ async function atualizarDashboard() {
       'Última leitura: ' + formatarHora(ultima.criadoEm);
 
     const exaustorLigado = Boolean(ultima.exaustor);
-    document.getElementById('valor-exaustor').textContent = exaustorLigado ? 'LIGADO' : 'Desligado';
+    const emergenciaAtiva = Boolean(ultima.emergencia);
+    document.getElementById('valor-exaustor').textContent = exaustorLigado ? (emergenciaAtiva ? 'LIGADO (emergência)' : 'LIGADO') : 'Desligado';
     document.getElementById('icone-exaustor').className = 'icone-exaustor' + (exaustorLigado ? ' ligado' : '');
+    document.getElementById('banner-emergencia').style.display = emergenciaAtiva ? 'block' : 'none';
 
     // Gráficos
     const labels = leituras.map(l => formatarHora(l.criadoEm));
@@ -266,6 +320,26 @@ async function atualizarDashboard() {
     graficoGas.data.labels = labels;
     graficoGas.data.datasets[0].data = leituras.map(l => l.gas);
     graficoGas.update();
+
+    graficoCO2.data.labels = labels;
+    graficoCO2.data.datasets[0].data = leituras.map(l => l.co2);
+    graficoCO2.update();
+
+    graficoNH3.data.labels = labels;
+    graficoNH3.data.datasets[0].data = leituras.map(l => l.nh3);
+    graficoNH3.update();
+
+    graficoAlcool.data.labels = labels;
+    graficoAlcool.data.datasets[0].data = leituras.map(l => l.alcool);
+    graficoAlcool.update();
+
+    graficoTolueno.data.labels = labels;
+    graficoTolueno.data.datasets[0].data = leituras.map(l => l.tolueno);
+    graficoTolueno.update();
+
+    graficoAcetona.data.labels = labels;
+    graficoAcetona.data.datasets[0].data = leituras.map(l => l.aceton);
+    graficoAcetona.update();
 
     // Tabela (10 mais recentes, mais nova primeiro)
     const corpoTabela = document.getElementById('tabela-corpo');

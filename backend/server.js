@@ -30,6 +30,15 @@ const leituraSchema = new mongoose.Schema({
   gas: { type: Number, required: true },
   status: { type: String, enum: ['normal', 'atencao', 'critico'], required: true },
   exaustor: { type: Boolean, default: false }, // true = ventoinha 12V ligada
+  emergencia: { type: Boolean, default: false }, // true = botão de emergência ativado (força o exaustor ligado)
+  // Estimativas de ppm por tipo de gás, calculadas no ESP32 a partir da
+  // mesma leitura do MQ-135 usando curvas de calibração genéricas do
+  // datasheet (não são medições independentes — ver nota no firmware).
+  co2: { type: Number },
+  nh3: { type: Number },
+  alcool: { type: Number },
+  tolueno: { type: Number },
+  aceton: { type: Number },
   criadoEm: { type: Date, default: Date.now }
 });
 
@@ -40,7 +49,7 @@ const Leitura = mongoose.model('Leitura', leituraSchema);
 // Recebe uma nova leitura do ESP32-S3
 app.post('/api/dados', async (req, res) => {
   try {
-    const { temperatura, umidade, gas, status, exaustor } = req.body;
+    const { temperatura, umidade, gas, status, exaustor, emergencia, co2, nh3, alcool, tolueno, aceton } = req.body;
 
     if (temperatura === undefined || umidade === undefined || gas === undefined || !status) {
       return res.status(400).json({ erro: 'Campos obrigatórios ausentes.' });
@@ -51,11 +60,17 @@ app.post('/api/dados', async (req, res) => {
       umidade,
       gas,
       status,
-      exaustor: Boolean(exaustor)
+      exaustor: Boolean(exaustor),
+      emergencia: Boolean(emergencia),
+      co2,
+      nh3,
+      alcool,
+      tolueno,
+      aceton
     });
     await novaLeitura.save();
 
-    console.log(`Nova leitura salva: temp=${temperatura} umid=${umidade} gas=${gas} status=${status} exaustor=${novaLeitura.exaustor}`);
+    console.log(`Nova leitura salva: temp=${temperatura} umid=${umidade} gas=${gas} status=${status} exaustor=${novaLeitura.exaustor} co2=${co2} nh3=${nh3} alcool=${alcool} tolueno=${tolueno} aceton=${aceton}`);
     res.status(201).json({ mensagem: 'Leitura salva com sucesso.', dados: novaLeitura });
   } catch (erro) {
     console.error(erro);
